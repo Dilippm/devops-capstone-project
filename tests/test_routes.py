@@ -179,3 +179,21 @@ class TestAccountService(TestCase):
         resp = self.client.put("/accounts/0", json={})
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
+
+    def test_delete_account(self):
+        """Delete an account"""
+        account = {
+          "name": "DeleteMe",
+          "email": "del@test.com",
+          "address": "Addr"
+        }
+
+        resp = self.client.post("/accounts", json=account)
+        account_id = resp.get_json()["id"]
+
+        resp = self.client.delete(f"/accounts/{account_id}")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_delete_account_not_found(self):
+        resp = self.client.delete("/accounts/0")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
