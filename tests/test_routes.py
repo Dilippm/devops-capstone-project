@@ -150,3 +150,32 @@ class TestAccountService(TestCase):
         data = resp.get_json()
         self.assertEqual(len(data), 2)
 
+
+    def test_update_account(self):
+        """Update an account"""
+        account = {
+          "name": "Old",
+          "email": "old@test.com",
+          "address": "Old Addr"
+        }
+
+        resp = self.client.post("/accounts", json=account)
+        account_id = resp.get_json()["id"]
+
+        updated = {
+          "name": "New",
+          "email": "new@test.com",
+          "address": "New Addr"
+        }
+
+        resp = self.client.put(f"/accounts/{account_id}", json=updated)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        data = resp.get_json()
+        self.assertEqual(data["name"], "New")
+
+    
+    def test_update_account_not_found(self):
+        resp = self.client.put("/accounts/0", json={})
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
