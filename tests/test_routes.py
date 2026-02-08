@@ -9,18 +9,19 @@ import os
 import logging
 from unittest import TestCase
 from tests.factories import AccountFactory
-from service.common import status  # HTTP Status Codes
+from service.common import status
 from service.models import db, Account, init_db
 from service.routes import app
 from service import talisman
 
 
 DATABASE_URI = os.getenv(
-    "DATABASE_URI", "postgresql://postgres:postgres@localhost:5432/postgres"
+    "DATABASE_URI",
+    "postgresql://postgres:postgres@localhost:5432/postgres"
 )
 
 BASE_URL = "/accounts"
-HTTPS_ENVIRON = {'wsgi.url_scheme': 'https'}
+HTTPS_ENVIRON = {"wsgi.url_scheme": "https"}
 
 
 ######################################################################
@@ -41,13 +42,12 @@ class TestAccountService(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Runs once before test suite"""
+        """Runs once after test suite"""
 
     def setUp(self):
         """Runs before each test"""
-        db.session.query(Account).delete()  # clean up the last tests
+        db.session.query(Account).delete()
         db.session.commit()
-
         self.client = app.test_client()
 
     def tearDown(self):
@@ -85,9 +85,9 @@ class TestAccountService(TestCase):
 
     def test_health(self):
         """It should be healthy"""
-        resp = self.client.get("/health")
-        self.assertEqual(resp.status_code, 200)
-        data = resp.get_json()
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
         self.assertEqual(data["status"], "OK")
 
     def test_create_account(self):
@@ -96,15 +96,13 @@ class TestAccountService(TestCase):
         response = self.client.post(
             BASE_URL,
             json=account.serialize(),
-            content_type="application/json"
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # Make sure location header is set
-        location = response.headers.get("Location", None)
+        location = response.headers.get("Location")
         self.assertIsNotNone(location)
 
-        # Check the data is correct
         new_account = response.get_json()
         self.assertEqual(new_account["name"], account.name)
         self.assertEqual(new_account["email"], account.email)
@@ -114,7 +112,7 @@ class TestAccountService(TestCase):
 
     def test_bad_request(self):
         """It should not Create an Account when sending the wrong data"""
-        response = self.client.post(BASE_URL, json={"name": "not enough data"})
+        response = self.client.post(BASE_URL, json={"name": "bad"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_unsupported_media_type(self):
@@ -123,102 +121,95 @@ class TestAccountService(TestCase):
         response = self.client.post(
             BASE_URL,
             json=account.serialize(),
-            content_type="test/html"
+            content_type="text/html",
         )
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
 
-    # ADD YOUR TEST CASES HERE ...
-    
     def test_get_account(self):
         """It should Read a single Account"""
         account = self._create_accounts(1)[0]
-        resp = self.client.get(
-            f"{BASE_URL}/{account.id}", content_type="application/json"
-        )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
+        response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
         self.assertEqual(data["name"], account.name)
 
     def test_get_account_not_found(self):
         """It should not Read an Account that is not found"""
-        resp = self.client.get(f"{BASE_URL}/0")
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        response = self.client.get(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_list_accounts(self):
         """List all accounts"""
         self._create_accounts(2)
-
-        resp = self.client.get(BASE_URL)
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-
-        data = resp.get_json()
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
         self.assertEqual(len(data), 2)
-
 
     def test_update_account(self):
         """Update an account"""
         account = {
-          "name": "Old",
-          "email": "old@test.com",
-          "address": "Old Addr"
+            "name": "Old",
+            "email": "old@test.com",
+            "address": "Old Addr",
         }
-
-        resp = self.client.post("/accounts", json=account)
-        account_id = resp.get_json()["id"]
+        response = self.client.post(BASE_URL, json=account)
+        account_id = response.get_json()["id"]
 
         updated = {
-          "name": "New",
-          "email": "new@test.com",
-          "address": "New Addr"
+            "name": "New",
+            "email": "new@test.com",
+            "address": "New Addr",
         }
-
-        resp = self.client.put(f"/accounts/{account_id}", json=updated)
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-
-        data = resp.get_json()
+        response = self.client.put(f"{BASE_URL}/{account_id}", json=updated)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
         self.assertEqual(data["name"], "New")
 
-    
     def test_update_account_not_found(self):
-        resp = self.client.put("/accounts/0", json={})
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
-
+        response = self.client.put(f"{BASE_URL}/0", json={})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_account(self):
         """Delete an account"""
         account = {
-          "name": "DeleteMe",
-          "email": "del@test.com",
-          "address": "Addr"
+            "name": "DeleteMe",
+            "email": "del@test.com",
+            "address": "Addr",
         }
+        response = self.client.post(BASE_URL, json=account)
+        account_id = response.get_json()["id"]
 
-        resp = self.client.post("/accounts", json=account)
-        account_id = resp.get_json()["id"]
-
-        resp = self.client.delete(f"/accounts/{account_id}")
-        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        response = self.client.delete(f"{BASE_URL}/{account_id}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_delete_account_not_found(self):
-        resp = self.client.delete("/accounts/0")
-        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        response = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_security_headers(self):
         """It should return security headers"""
-        response = self.client.get('/', environ_overrides=HTTPS_ENVIRON)
+        response = self.client.get("/", environ_overrides=HTTPS_ENVIRON)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
         headers = {
-            'X-Frame-Options': 'SAMEORIGIN',
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': 'default-src \'self\'; object-src \'none\'',
-            'Referrer-Policy': 'strict-origin-when-cross-origin'
+            "X-Frame-Options": "SAMEORIGIN",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'self'; object-src 'none'",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
         }
+
         for key, value in headers.items():
             self.assertEqual(response.headers.get(key), value)
 
-
     def test_cors_security(self):
         """It should return a CORS header"""
-        response = self.client.get('/', environ_overrides=HTTPS_ENVIRON)
+        response = self.client.get("/", environ_overrides=HTTPS_ENVIRON)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Check for the CORS header
-        self.assertEqual(response.headers.get('Access-Control-Allow-Origin'), '*')
+        self.assertEqual(
+            response.headers.get("Access-Control-Allow-Origin"),
+            "*",
+        )
